@@ -60,6 +60,7 @@ def parse_args():
     parser.add_argument('--num_workers', type=int, default=4)
 
     # Logging
+    parser.add_argument('--experiment', default='', help='Experiment label (e.g. R0/R1)')
     parser.add_argument('--save_dir', type=str, required=True)
     parser.add_argument('--log_file', default='train_log.txt')
     parser.add_argument('--gpu_id', type=int, default=0)
@@ -176,6 +177,30 @@ def eval_epoch(args, test_loader, model, criterion):
     return average_epoch_loss, scores
 
 
+def count_deploy_params(model):
+    """Count parameters remaining after switch_to_deploy() (inference/deploy params)."""
+    model.switch_to_deploy()
+    return sum(p.numel() for p in model.parameters())
+
+
+def count_flops(model, size=256):
+    """Count deploy FLOPs at `size`x`size` via thop; return None if unavailable."""
+    try:
+        from thop import profile
+    except ImportError:
+        print("[warn] thop not installed; skipping FLOPs profiling")
+        return None
+    try:
+        model.eval()
+        x1 = torch.randn(1, 3, size, size).cuda()
+        x2 = torch.randn(1, 3, size, size).cuda()
+        flops, _ = profile(model, inputs=(x1, x2), verbose=False)
+        return flops
+    except Exception as e:
+        print(f"[warn] FLOPs profiling failed: {e}")
+        return None
+
+
 def main():
     args = parse_args()
 
@@ -227,6 +252,7 @@ def main():
 
     # Logger
     log_config = {
+        'experiment': args.experiment,
         'dataset': args.dataset_name,
         'model': f'A2Net_LWGANet_{args.model_type}',
         'use_afd': args.use_afd,
@@ -303,6 +329,20 @@ def main():
         best_model_file_name
     )
     logger.log_message(f"Total training time: {all_time}")
+
+    # Report inference (deploy) parameters and FLOPs at the end of the log.
+    deploy_params = count_deploy_params(model)
+    deploy_params_msg = (f"Inference Params (deploy): {deploy_params} "
+                         f"({deploy_params / 1e6:.4f}M)")
+    logger.log_message(deploy_params_msg)
+    print(deploy_params_msg)
+
+    deploy_flops = count_flops(model, size=args.inWidth)
+    if deploy_flops is not None:
+        deploy_flops_msg = (f"Inference FLOPs (deploy): {deploy_flops / 1e9:.4f}G "
+                            f"@ {args.inWidth}x{args.inHeight}")
+        logger.log_message(deploy_flops_msg)
+        print(deploy_flops_msg)
 
     print(f"\nTest (best_epoch): Kappa = {score_test['Kappa']:.4f}, IoU = {score_test['IoU']:.4f}, "
           f"F1 = {score_test['F1']:.4f}, R = {score_test['recall']:.4f}, P = {score_test['precision']:.4f}")

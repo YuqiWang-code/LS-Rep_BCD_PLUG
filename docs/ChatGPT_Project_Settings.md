@@ -29,4 +29,5 @@ models/ 为 A2Net + LWGANet-L0 干净 baseline（a2net.py；backbone/{lwganet,af
 5. 消融必须控制变量：至少保留同 batch/steps/seed 的干净 baseline 复现，并为候选外挂模块安排多种子验证。单种子或单数据集提升只能描述为 preliminary，不能宣称普适。
 6. 正式报告必须同时给 Recall/Precision/OA/F1/IoU/Kappa、相对同批 baseline 的百分点差、训练/部署参数与 FLOPs。
 7. 文献、标题、作者、会议与年份必须可验证；不确定时标注待核验，严禁虚构。不要因为设计新颖就预设有效。
+8. 网络调研（检索文献、找参考代码）必须限定在 2024–2026 年的 CCF-A 及以上级别工作（CVPR、ICCV、ECCV、ICLR、NeurIPS、ICML、AAAI，以及遥感/影像领域的 IEEE TPAMI、IEEE TIP、IEEE TGRS、JSTARS、ISPRS J 等）；不得把低级别期刊、预印本或过期工作当作方法依据。
 ```

@@ -6,7 +6,8 @@ set -euo pipefail
 GPU_ID="${1:-0}"
 PROJ="/home/yqwang/project/LS-Rep_BCD_PLUG"
 DATA_BASE="/data/CD"
-SAVE_BASE="$PROJ/saved_models/PLUG/Run1"
+# 模型权重与训练日志统一落到存储盘 /storage（不占用 /home 项目盘）
+SAVE_BASE="/storage/yqwang/LS-Rep_BCD/saved_models/PLUG/Run1"
 
 cd "$PROJ"
 
