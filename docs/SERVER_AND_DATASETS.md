@@ -11,17 +11,17 @@
 **重要**: 所有代码修改都在本地 Windows 环境完成，然后手动上传到服务器。
 
 **本地环境**:
-- 路径: `F:\Code_Repositories_2\CursorCode\LS-Rep_BCD`
+- 路径: `F:\Code_Repositories_2\CursorCode\LS-Rep_BCD_PLUG`
 - IDE: VSCode / Cursor
 - AI助手: Claude 在本地进行代码修改和重构
 
 **服务器环境**:
-- 路径: `/home/yqwang/project/LS-Rep_BCD/`
+- 路径: `/home/yqwang/project/LS-Rep_BCD_PLUG/`
 - 用途: 训练和实验执行
 
 **工作流程**:
 ```
-1. 本地修改代码 (F:\Code_Repositories_2\CursorCode\LS-Rep_BCD)
+1. 本地修改代码 (F:\Code_Repositories_2\CursorCode\LS-Rep_BCD_PLUG)
    ↓
 2. 确保换行符正确 (LF, 不是 CRLF)
    ↓
@@ -35,13 +35,13 @@
 **上传命令示例**:
 ```bash
 # 上传整个 models/ 目录
-scp -r F:/Code_Repositories_2/CursorCode/LS-Rep_BCD/models/ yqwang@172.18.232.141:/home/yqwang/project/LS-Rep_BCD/
+scp -r F:/Code_Repositories_2/CursorCode/LS-Rep_BCD_PLUG/models/ yqwang@172.18.232.151:/home/yqwang/project/LS-Rep_BCD_PLUG/
 
 # 上传训练脚本
-scp -r F:/Code_Repositories_2/CursorCode/LS-Rep_BCD/train_scripts/LSRepNet/Run4/ yqwang@172.18.232.141:/home/yqwang/project/LS-Rep_BCD/train_scripts/LSRepNet/
+scp -r F:/Code_Repositories_2/CursorCode/LS-Rep_BCD_PLUG/train_scripts/LSRepNet/Run4/ yqwang@172.18.232.151:/home/yqwang/project/LS-Rep_BCD_PLUG/train_scripts/LSRepNet/
 
 # 上传单个文件
-scp F:/Code_Repositories_2/CursorCode/LS-Rep_BCD/models/scripts/train.py yqwang@172.18.232.141:/home/yqwang/project/LS-Rep_BCD/models/scripts/
+scp F:/Code_Repositories_2/CursorCode/LS-Rep_BCD_PLUG/models/scripts/train.py yqwang@172.18.232.151:/home/yqwang/project/LS-Rep_BCD_PLUG/models/scripts/
 ```
 
 **注意事项**:
@@ -80,14 +80,14 @@ sudo yum install dos2unix  # CentOS/RHEL
 sudo apt-get install dos2unix  # Ubuntu/Debian
 
 # 转换所有 .sh 文件
-cd /home/yqwang/project/LS-Rep_BCD/train_scripts/LSRepNet/Run4
+cd /home/yqwang/project/LS-Rep_BCD_PLUG/train_scripts/LSRepNet/Run4
 dos2unix run_gpu0.sh run_gpu1.sh
 find . -name "*.sh" -exec dos2unix {} \;
 ```
 
 **方法2: 使用 sed 转换**
 ```bash
-cd /home/yqwang/project/LS-Rep_BCD/train_scripts/LSRepNet/Run4
+cd /home/yqwang/project/LS-Rep_BCD_PLUG/train_scripts/LSRepNet/Run4
 sed -i 's/\r$//' run_gpu0.sh
 sed -i 's/\r$//' run_gpu1.sh
 find . -name "*.sh" -exec sed -i 's/\r$//' {} \;
@@ -113,18 +113,18 @@ chmod +x run_gpu0.sh
 
 | 项目 | 信息 |
 |------|------|
-| **IP** | `172.18.232.141` |
+| **IP** | `172.18.232.151` |
 | **端口** | `22` |
 | **协议** | SFTP / SSH |
 | **用户名** | `yqwang` |
 | **Conda 环境（A2Net 训练）** | `lwganet` (Python 3.10, 服务器实测 PyTorch 2.6.0 + CUDA 12.6) |
 | **Conda 环境（Run4 阶段一）** | `sam2cache` (Python 3.10, PyTorch 2.5.1 + torchvision 0.20.1 + CUDA 12.4) |
 | **Conda 环境（旧）** | `lsrep` (Python 3.10) — LSRepNet v5 用，已弃用 |
-| **远程项目路径** | `/home/yqwang/project/LS-Rep_BCD/` |
+| **远程项目路径** | `/home/yqwang/project/LS-Rep_BCD_PLUG/` |
 
 SSH 登录:
 ```bash
-ssh yqwang@172.18.232.141
+ssh yqwang@172.18.232.151
 ```
 
 ### 1.2 硬件配置
@@ -245,7 +245,7 @@ python -m pip install opencv-python-headless==4.10.0.84
 
 # 安装项目内置 SAM2.1 源码。阶段一不依赖其可选 CUDA 后处理扩展，
 # 先显式关闭编译，可避免系统 nvcc 与 PyTorch CUDA 轮子不一致。
-cd /home/yqwang/project/LS-Rep_BCD/models/third_party/sam2
+cd /home/yqwang/project/LS-Rep_BCD_PLUG/models/third_party/sam2
 SAM2_BUILD_CUDA=0 python -m pip install --no-build-isolation -e .
 
 python -m pip check
@@ -257,7 +257,7 @@ python -m pip check
 
 ```bash
 conda activate sam2cache
-cd /home/yqwang/project/LS-Rep_BCD
+cd /home/yqwang/project/LS-Rep_BCD_PLUG
 
 python -c "import torch, torchvision, cv2; from sam2.build_sam import build_sam2; print('torch=', torch.__version__, 'torchvision=', torchvision.__version__, 'cuda=', torch.version.cuda, 'gpu=', torch.cuda.get_device_name(0)); print('SAM2 import OK')"
 
@@ -268,7 +268,7 @@ test -f pre-trained_weights/sam2.1_hiera_large.pt
 预期至少看到：`torch=2.5.1`、`torchvision=0.20.1`、`cuda=12.4`、RTX 4090 名称和 `SAM2 import OK`。两条 `test` 命令均应返回 0；若权重不存在，需把 `sam2.1_hiera_large.pt` 上传到：
 
 ```text
-/home/yqwang/project/LS-Rep_BCD/pre-trained_weights/sam2.1_hiera_large.pt
+/home/yqwang/project/LS-Rep_BCD_PLUG/pre-trained_weights/sam2.1_hiera_large.pt
 ```
 
 #### 可选：启用 SAM2 CUDA 后处理扩展
@@ -280,7 +280,7 @@ conda activate sam2cache
 nvcc --version
 python -c "import torch; from torch.utils.cpp_extension import CUDA_HOME; print(torch.version.cuda, CUDA_HOME)"
 
-cd /home/yqwang/project/LS-Rep_BCD/models/third_party/sam2
+cd /home/yqwang/project/LS-Rep_BCD_PLUG/models/third_party/sam2
 SAM2_BUILD_ALLOW_ERRORS=0 python -m pip install -v --no-build-isolation -e .
 python -c "from sam2 import _C; print('SAM2 CUDA extension OK')"
 ```
@@ -312,7 +312,7 @@ python -c "import torch, torchvision; print(torch.__version__, torchvision.__ver
 阶段一的两个构建脚本会自动激活 `sam2cache`，因此从 `base` 环境启动也可以：
 
 ```bash
-cd /home/yqwang/project/LS-Rep_BCD
+cd /home/yqwang/project/LS-Rep_BCD_PLUG
 
 # SYSU 默认用物理 GPU 1：12000 个 train 样本
 bash train_scripts/A2Net/Run4/build_sam_cache_sysu.sh
@@ -537,7 +537,7 @@ bash train_scripts/A2Net/Run4/build_sam_cache_whu.sh --rebuild
 
 ```bash
 # 生成完整审计报告（在服务器上运行）
-cd /home/yqwang/project/LS-Rep_BCD/docs/DATA/
+cd /home/yqwang/project/LS-Rep_BCD_PLUG/docs/DATA/
 # 使用之前的一键命令生成 CD_dataset_audit.txt
 ```
 
@@ -562,8 +562,8 @@ pip list --format=columns      # 查看已安装包
 
 | 位置 | 路径 |
 |------|------|
-| **本地项目** | `f:\Code_Repositories_2\CursorCode\LS-Rep_BCD\` |
-| **服务器项目** | `/home/yqwang/project/LS-Rep_BCD/` |
+| **本地项目** | `f:\Code_Repositories_2\CursorCode\LS-Rep_BCD_PLUG\` |
+| **服务器项目** | `/home/yqwang/project/LS-Rep_BCD_PLUG/` |
 | **数据集根** | `/data/CD/` |
 | **Conda 环境（A2Net 训练）** | `/home/yqwang/miniconda3/envs/lwganet/` |
 | **Conda 环境（SAM2 缓存）** | `/home/yqwang/miniconda3/envs/sam2cache/` |
