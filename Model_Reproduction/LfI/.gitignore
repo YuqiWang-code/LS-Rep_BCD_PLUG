@@ -1,0 +1,22 @@
+# Data
+/data/
+/recaptions_*/
+
+# Outputs (includes logs, checkpoints, wandb, and hydra runs)
+outputs/
+
+# Results
+results/
+
+# Cache
+cache/
+
+# Virtual environment
+.venv/
+
+# IDE
+.idea/
+.vscode/
+
+# System
+__pycache__
