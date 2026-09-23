@@ -26,8 +26,17 @@ batch 64、40000 steps、seed 2333、lr 5e-4、wd 1e-4、主损失 BCE+Dice（4 
 ## 脚本
 
 ```text
-run_gpu1.sh   物理 GPU 1 顺序跑 12 组（skip 已完成）
+run_gpu1.sh <gpu_id> <group>     group ∈ {sysu, cdd, all}
 ```
+
+拆两路并行占满 GPU 1（SYSU / CDD 各一路，batch 64，峰值约 21.8 GB < 24 GB）：
+
+```bash
+tmux new-session -d -s graft_sysu 'bash run_gpu1.sh 1 sysu'
+tmux new-session -d -s graft_cdd  'bash run_gpu1.sh 1 cdd'
+```
+
+> R1-L（local tutor）中间层已加宽到 192，train-only 参数 ≈ 3.6M，与 R1-F（3.8M）大致容量对齐，用于隔离「全局信息」vs「容量」。
 
 ## 判据
 

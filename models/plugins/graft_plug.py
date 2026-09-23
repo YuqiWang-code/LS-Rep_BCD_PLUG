@@ -83,11 +83,13 @@ class GRAFTPlug(nn.Module):
 
         if local_tutor:
             # 每个 stage 一个 local teacher（无跨 stage 全局推理，容量对齐的反例组）
+            # 加宽中间层到 192，使 train-only 参数 ≈ F 模式（~3.6M），隔离"全局信息"vs"容量"
+            local_dim = 192
             self.local_teacher = nn.ModuleList([
                 nn.Sequential(
-                    nn.Conv2d(bsee_dim, bsee_dim, 3, 1, 1, bias=False), _gn(bsee_dim), nn.GELU(),
-                    nn.Conv2d(bsee_dim, bsee_dim, 3, 1, 1, bias=False), _gn(bsee_dim), nn.GELU(),
-                    nn.Conv2d(bsee_dim, bsee_dim, 3, 1, 1, bias=False), _gn(bsee_dim), nn.GELU(),
+                    nn.Conv2d(bsee_dim, local_dim, 3, 1, 1, bias=False), _gn(local_dim), nn.GELU(),
+                    nn.Conv2d(local_dim, local_dim, 3, 1, 1, bias=False), _gn(local_dim), nn.GELU(),
+                    nn.Conv2d(local_dim, bsee_dim, 3, 1, 1, bias=False), _gn(bsee_dim), nn.GELU(),
                 ) for _ in range(self.num_stages)
             ])
         else:
