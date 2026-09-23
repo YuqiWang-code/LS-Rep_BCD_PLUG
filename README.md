@@ -81,3 +81,7 @@ python analyse/generate_snapshot.py --name A2Net_Run1 --include_metrics
 ## 研究约束
 
 外挂模块是训练期辅助结构，必须满足：部署参数固定 2.9131M / 2.7475G；`switch_to_deploy()` 后主路输出逐 bit 不变；外挂模块开/关不改变主输出。详细约束见 `docs/ChatGPT_Project_Settings.md`。
+
+## 参考文献
+
+GRAFT-PLUG 的方法依据与 2024–2026 年 CCF-A 及以上 venue 的网络调研见 [docs/参考文献/文献索引.md](docs/参考文献/文献索引.md)（论文 PDF 在 `docs/参考文献/GRAFT相关/`，参考代码见 `Model_Reproduction/`）。
