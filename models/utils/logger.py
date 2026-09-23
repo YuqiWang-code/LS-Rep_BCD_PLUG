@@ -31,6 +31,14 @@ class TrainingLogger:
         """Log epoch training and validation results"""
         log_str = f"Epoch [{epoch}/{total_epochs}] "
         log_str += f"Loss: {train_losses['total']:.4f} "
+        if 'graft_task' in train_losses:
+            log_str += f"task: {train_losses['graft_task']:.4f} "
+        if 'graft_repr' in train_losses:
+            log_str += f"repr: {train_losses['graft_repr']:.4f} "
+        if 'graft_kgr' in train_losses:
+            log_str += f"kgr: {train_losses['graft_kgr']:.4f} "
+            log_str += f"conf: {train_losses['graft_conf']:.4f} "
+            log_str += f"gap: {train_losses['graft_gap']:.4f} "
         log_str += f"F1: {val_metrics['f1']:.4f} "
         log_str += f"IoU: {val_metrics['iou']:.4f} "
         log_str += f"Kappa: {val_metrics['kappa']:.4f} "

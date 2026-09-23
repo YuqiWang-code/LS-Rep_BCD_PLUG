@@ -4,7 +4,9 @@ GRAFT-PLUG（梯度路由式辅助融合教师外挂）第一阶段机制消融�
 
 ## 协议（固定）
 
-batch 64、40000 steps、seed 2333、lr 5e-4、wd 1e-4、主损失 BCE+Dice（4 尺度）、测试集当验证集（每 epoch 在测试集选 best）。外挂只在训练期挂载，`switch_to_deploy()` 后部署参数回到 2,913,094 / FLOPs 2.7475G，主路输出与 baseline 逐 bit 一致（max error < 1e-6）。
+batch 64、40000 nominal steps（epoch 取 ceil，实际 optimizer steps 略超，日志会记录 actual steps）、seed 2333、lr 5e-4、wd 1e-4、主损失 BCE+Dice（4 尺度）、测试集当验证集（每 epoch 在测试集选 best）。外挂只在训练期挂载，`switch_to_deploy()` 后部署参数回到 2,913,094 / FLOPs 2.7475G，拆除前后主路输出逐 bit 一致（max error < 1e-6，训练末尾自动校验）。
+
+实验控制：R0 与各 R1-* 共享同一 DataLoader 随机流（独立 `generator` + 确定性 worker seed），representation KD 前 10% steps 线性 warmup。
 
 ## 消融矩阵（Phase A：SYSU + CDD）
 
@@ -12,7 +14,7 @@ batch 64、40000 steps、seed 2333、lr 5e-4、wd 1e-4、主损失 BCE+Dice（4 
 |---|---|---|---|---|---|---|---|---|
 | R0 | 干净 baseline | — | （不传） | — | — | — | — | — |
 | R1-T | task gradient only | 只有 GT 深度监督 | T | ✓ | ✗ | ✗ | ✗ | ✗ |
-| R1-D | distill gradient only | 只有 global→local 自蒸馏 | D | ✓ | ✓ | ✓ | ✗ | ✗ |
+| R1-D | distillation-only-to-backbone | teacher 受 GT，backbone 只收蒸馏梯度 | D | ✓ | ✓ | ✓ | ✗ | ✗ |
 | R1-U | full, uniform | 两梯度无 KGR | U | ✓ | ✓ | ✗ | ✗ | ✗ |
 | R1-F | full GRAFT | + KGR | F | ✓ | ✓ | ✗ | ✓ | ✗ |
 | R1-L | capacity-matched local tutor | 去掉跨 stage 全局推理 | L | ✓ | ✓ | ✗ | ✓ | ✓ |
@@ -36,7 +38,7 @@ tmux new-session -d -s graft_sysu 'bash run_gpu1.sh 1 sysu'
 tmux new-session -d -s graft_cdd  'bash run_gpu1.sh 1 cdd'
 ```
 
-> R1-L（local tutor）中间层已加宽到 192，train-only 参数 ≈ 3.6M，与 R1-F（3.8M）大致容量对齐，用于隔离「全局信息」vs「容量」。
+> R1-L（local tutor）中间层已加宽到 204，train-only 参数 ≈ 3.8M，与 R1-F（3.8M）容量对齐，用于隔离「全局信息」vs「容量」。
 
 ## 判据
 

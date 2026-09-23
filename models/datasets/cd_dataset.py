@@ -63,10 +63,16 @@ class CDDataset(torch.utils.data.Dataset):
 
 
 def get_loader(file_root, list_file, img_ext='.png', file_prefix='',
-               batchsize=32, trainsize=256, shuffle=True, num_workers=4, pin_memory=True):
+               batchsize=32, trainsize=256, shuffle=True, num_workers=4, pin_memory=True,
+               generator=None, worker_init_fn=None):
     """
     Build training dataloader with augmentation
+
+    `generator` / `worker_init_fn` are forwarded verbatim to DataLoader so that
+    the sample order (shuffle) and per-worker augmentation RNG are deterministic
+    and independent of model-construction time RNG (e.g. GRAFT param init).
     """
+
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
     from transforms import Compose, Normalize, Scale, RandomCropResize, RandomFlip, RandomExchange, ToTensor
@@ -108,14 +114,17 @@ def get_loader(file_root, list_file, img_ext='.png', file_prefix='',
         shuffle=shuffle,
         num_workers=num_workers,
         pin_memory=pin_memory,
-        drop_last=(split == 'train')
+        drop_last=(split == 'train'),
+        generator=generator,
+        worker_init_fn=worker_init_fn
     )
 
     return loader
 
 
 def get_test_loader(file_root, list_file, img_ext='.png', file_prefix='',
-                    batchsize=32, testsize=256, num_workers=4, pin_memory=True):
+                    batchsize=32, testsize=256, num_workers=4, pin_memory=True,
+                    generator=None, worker_init_fn=None):
     """
     Build test/validation dataloader without augmentation
     """
@@ -154,7 +163,9 @@ def get_test_loader(file_root, list_file, img_ext='.png', file_prefix='',
         batch_size=batchsize,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=pin_memory
+        pin_memory=pin_memory,
+        generator=generator,
+        worker_init_fn=worker_init_fn
     )
 
     return loader

@@ -25,7 +25,7 @@ git push
 - **任务**：256×256 全监督二值遥感图像变化检测（binary change detection, BCD）。
 - **主路部署学生**：A2Net + LWGANet-L0。`T1/T2 → 共享 LWGANet-L0 四阶段特征 → SWA → TFM → A2Net decoder → 四尺度 change probability`。
   - 部署参数 **2,913,094（2.9131M）**，256×256 FLOPs **2.7475G**。
-- **核心研究方向**：设计挂在编码器每一层之外的**外挂模块（plug-in）**——只有输入、没有输出、不进入主特征流，训练期通过辅助损失反向增强 backbone；`switch_to_deploy()` 后完整拆除，部署参数回到 2.9131M，主路输出与未挂外挂模块时逐 bit 一致（max error < 1e-6）。目标是在四个数据集上，拆除后的编码器比不挂外挂模块的 baseline 更强。
+- **核心研究方向**：设计挂在编码器每一层之外的**外挂模块（plug-in）**——只有输入、没有输出、不进入主特征流，训练期通过辅助损失反向增强 backbone；`switch_to_deploy()` 后完整拆除，部署参数回到 2.9131M，拆除前后（同一 checkpoint）主路输出逐 bit 一致（max error < 1e-6，训练日志末尾自动验证）。目标是在四个数据集上，拆除后的编码器比不挂外挂模块的 baseline 更强。
 
 ## 研究定位
 
@@ -41,9 +41,11 @@ GRAFT-PLUG（Gradient-Routed Auxiliary Fusion Teacher Plug-in，梯度路由式�
 - **BSEE**（双时相对称证据编码器）：`sum / |diff| / product` 对称关系基，交换不变。
 - **CGR**（跨阶段全局推理器）：多尺度 token 化 + transformer，聚合跨 stage / 跨时相 / 全局上下文。
 - **LSP**（局部 stage 探针）：容量受限、只能看本 stage，逼 backbone 内化全局知识。
-- **KGR**（知识缺口梯度路由器）：按 teacher reliability × knowledge gap 选择性教学。
+- **KGR**（知识缺口梯度路由器）：按 teacher reliability × knowledge gap 选择性教学，changed/unchanged 两类等预算。
 
 它产生两条互补梯度：**Global Task Gradient**（GT 深度监督）＋ **Global-to-Local Distillation Gradient**（stop-grad 自蒸馏）。完整设计见 `docs/temporary/LS-Rep_BCD_PLUG_GRAFT_PLUG_Research_Design_v2.md`。
+
+> 实验控制：R0 与各 R1-* 共享同一 DataLoader 随机流（独立 generator + 确定性 worker seed），representation KD 前 10% steps 线性 warmup，训练结束自动做 deploy equivalence 校验并导出 `best_deploy_model.pth`。
 
 ## 数据集与评估协议
 

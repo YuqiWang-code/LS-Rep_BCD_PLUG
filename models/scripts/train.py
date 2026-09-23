@@ -58,6 +58,8 @@ def parse_args():
                         help='GRAFT ablation: T=task only, D=distill only, U=uniform, F=full, L=local tutor')
     parser.add_argument('--graft_task_weight', type=float, default=1.0, help='GRAFT task gradient weight')
     parser.add_argument('--graft_repr_weight', type=float, default=1.0, help='GRAFT representation gradient weight')
+    parser.add_argument('--graft_repr_warmup', type=float, default=0.1,
+                        help='fraction of total steps over which the repr KD weight linearly ramps 0->1')
 
     # Training
     parser.add_argument('--batch_size', type=int, default=32)
@@ -86,6 +88,17 @@ def set_seed(seed):
     cudnn.benchmark = False
 
 
+def make_worker_init_fn(base_seed):
+    """Deterministic per-worker seeding so augmentation RNG is independent of
+    model-construction RNG (GRAFT init must not shift the data stream)."""
+    def _init(worker_id):
+        seed = base_seed + worker_id
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+    return _init
+
+
 def train_epoch(args, train_loader, model, criterion, optimizer, epoch, max_batches, cur_iter=0):
     """Train for one epoch."""
     model.train()
@@ -93,7 +106,14 @@ def train_epoch(args, train_loader, model, criterion, optimizer, epoch, max_batc
     salEvalVal = ConfuseMatrixMeter(n_class=2)
     loss_total = 0.0
     loss_main = 0.0
+    loss_graft_task = 0.0
+    loss_graft_repr = 0.0
+    loss_graft_kgr = 0.0
+    loss_graft_conf = 0.0
+    loss_graft_gap = 0.0
+    has_task = has_repr = has_kgr = False
     n_batches = len(train_loader)
+    total_steps = max_batches * args.max_epochs
 
     for iter, batched_inputs in enumerate(train_loader):
         img, target = batched_inputs
@@ -126,8 +146,16 @@ def train_epoch(args, train_loader, model, criterion, optimizer, epoch, max_batc
         # GRAFT auxiliary losses
         if "graft_task" in aux_losses:
             loss = loss + args.graft_task_weight * aux_losses["graft_task"]
+            has_task = True
         if "graft_repr" in aux_losses:
-            loss = loss + args.graft_repr_weight * aux_losses["graft_repr"]
+            # representation KD 前 warmup 段线性 ramp（0 -> 1），避免早期随机 teacher 拉偏 backbone
+            warmup = 1.0
+            if args.graft_repr_warmup > 0:
+                warmup = min(1.0, global_iter / max(1, total_steps * args.graft_repr_warmup))
+            loss = loss + args.graft_repr_weight * warmup * aux_losses["graft_repr"]
+            has_repr = True
+        if "graft_kgr" in aux_losses:
+            has_kgr = True
 
         # Backward
         optimizer.zero_grad()
@@ -140,6 +168,14 @@ def train_epoch(args, train_loader, model, criterion, optimizer, epoch, max_batc
 
         loss_total += loss.item()
         loss_main += l_main.item()
+        if has_task:
+            loss_graft_task += aux_losses["graft_task"].detach().item()
+        if has_repr:
+            loss_graft_repr += aux_losses["graft_repr"].detach().item()
+        if has_kgr:
+            loss_graft_kgr += aux_losses["graft_kgr"].detach().item()
+            loss_graft_conf += aux_losses["graft_conf"].detach().item()
+            loss_graft_gap += aux_losses["graft_gap"].detach().item()
 
         if iter % 5 == 0:
             print(f'\riteration: [{global_iter}/{max_batches * args.max_epochs}] '
@@ -147,10 +183,19 @@ def train_epoch(args, train_loader, model, criterion, optimizer, epoch, max_batc
                   f'main: {l_main.item():.3f}', end='')
 
     scores = salEvalVal.get_scores()
-    return {
+    ret = {
         'total': loss_total / n_batches,
         'main': loss_main / n_batches,
-    }, scores, lr
+    }
+    if has_task:
+        ret['graft_task'] = loss_graft_task / n_batches
+    if has_repr:
+        ret['graft_repr'] = loss_graft_repr / n_batches
+    if has_kgr:
+        ret['graft_kgr'] = loss_graft_kgr / n_batches
+        ret['graft_conf'] = loss_graft_conf / n_batches
+        ret['graft_gap'] = loss_graft_gap / n_batches
+    return ret, scores, lr
 
 
 @torch.no_grad()
@@ -212,6 +257,26 @@ def count_flops(model, size=256):
     except Exception as e:
         print(f"[warn] FLOPs profiling failed: {e}")
         return None
+
+
+@torch.no_grad()
+def verify_deploy_equivalence(model, size=256):
+    """Run the same fixed input before/after switch_to_deploy(); return max abs error.
+
+    In eval mode GRAFT is never invoked, so the only change switch_to_deploy()
+    makes is deleting the side branch. A correct plug-in must give bit-identical
+    main-path outputs (max error == 0; tolerance < 1e-6 guards against fp noise).
+    """
+    model.eval()
+    x1 = torch.randn(1, 3, size, size).cuda()
+    x2 = torch.randn(1, 3, size, size).cuda()
+    before = model(x1, x2)                 # eval -> masks tuple, GRAFT skipped
+    model.switch_to_deploy()
+    after = model(x1, x2)                  # side branch deleted
+    max_err = 0.0
+    for b, a in zip(before, after):
+        max_err = max(max_err, float((b - a).abs().max()))
+    return max_err
 
 
 def _build_graft_cfg(args):
@@ -279,14 +344,21 @@ def main():
     if graft_params:
         print(f"GRAFT (train-only) Params: {graft_params / 1e6:.2f}M")
 
-    # Build dataloaders (test split is reused as the validation set)
+    # Build dataloaders (test split is reused as the validation set).
+    # Independent RNG (generator + worker_init_fn) keeps the sample order and
+    # augmentation stream identical across R0 / R1-* regardless of GRAFT init.
     print("Loading data...")
+    train_generator = torch.Generator().manual_seed(args.seed)
+    test_generator = torch.Generator().manual_seed(args.seed)
+    worker_init_fn = make_worker_init_fn(args.seed)
     train_loader = get_loader(args.data_root, 'train.txt',
                               batchsize=args.batch_size, trainsize=args.inWidth,
-                              shuffle=True, num_workers=args.num_workers)
+                              shuffle=True, num_workers=args.num_workers,
+                              generator=train_generator, worker_init_fn=worker_init_fn)
     test_loader = get_test_loader(args.data_root, 'test.txt',
                                   batchsize=args.batch_size, testsize=args.inWidth,
-                                  num_workers=args.num_workers)
+                                  num_workers=args.num_workers,
+                                  generator=test_generator, worker_init_fn=worker_init_fn)
 
     # Criterion & optimizer
     criterion = build_loss()
@@ -377,13 +449,23 @@ def main():
         best_model_file_name
     )
     logger.log_message(f"Total training time: {all_time}")
+    logger.log_message(f"Nominal max_steps: {args.max_steps}; "
+                       f"actual optimizer steps: {cur_iter}")
 
-    # Report inference (deploy) parameters and FLOPs at the end of the log.
+    # Deploy-equivalence verification: same fixed input before/after removal.
+    max_err = verify_deploy_equivalence(model, size=args.inWidth)
     deploy_params = count_deploy_params(model)
     deploy_params_msg = (f"Inference Params (deploy): {deploy_params} "
                          f"({deploy_params / 1e6:.4f}M)")
+    deploy_err_msg = f"Deploy max error (before/after): {max_err:.3e}"
     logger.log_message(deploy_params_msg)
+    logger.log_message(deploy_err_msg)
     print(deploy_params_msg)
+    print(deploy_err_msg)
+    assert max_err < 1e-6, f"Deploy is NOT lossless: max error {max_err:.3e} >= 1e-6"
+    if args.model_type == 'L0':
+        assert deploy_params == 2_913_094, f"Unexpected deploy params: {deploy_params}"
+    logger.log_message("Deploy equivalence check PASSED (max error < 1e-6)")
 
     deploy_flops = count_flops(model, size=args.inWidth)
     if deploy_flops is not None:
@@ -391,6 +473,18 @@ def main():
                             f"@ {args.inWidth}x{args.inHeight}")
         logger.log_message(deploy_flops_msg)
         print(deploy_flops_msg)
+
+    # Export a clean deploy-only checkpoint and verify it loads strictly into a
+    # fresh no-graft model (guarantees the side branch left no residue behind).
+    deploy_ckpt = os.path.join(args.save_dir, 'best_deploy_model.pth')
+    torch.save(model.state_dict(), deploy_ckpt)
+    if args.model_type == 'L0':
+        clean = A2Net_LWGANet_L0(pretrained=False, use_afd=False, graft_cfg=None)
+    else:
+        clean = A2Net_LWGANet_L2(pretrained=False, use_afd=False, graft_cfg=None)
+    clean.load_state_dict(torch.load(deploy_ckpt), strict=True)
+    logger.log_message(f"Deploy checkpoint saved & strict-loaded: {deploy_ckpt}")
+    print(f"Deploy checkpoint saved & strict-loaded: {deploy_ckpt}")
 
     print(f"\nTest (best_epoch): Kappa = {score_test['Kappa']:.4f}, IoU = {score_test['IoU']:.4f}, "
           f"F1 = {score_test['F1']:.4f}, R = {score_test['recall']:.4f}, P = {score_test['precision']:.4f}")

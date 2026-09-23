@@ -83,8 +83,8 @@ class GRAFTPlug(nn.Module):
 
         if local_tutor:
             # 每个 stage 一个 local teacher（无跨 stage 全局推理，容量对齐的反例组）
-            # 加宽中间层到 192，使 train-only 参数 ≈ F 模式（~3.6M），隔离"全局信息"vs"容量"
-            local_dim = 192
+            # 加宽中间层到 204，使 train-only 参数 ≈ F 模式（~3.82M），隔离"全局信息"vs"容量"
+            local_dim = 204
             self.local_teacher = nn.ModuleList([
                 nn.Sequential(
                     nn.Conv2d(bsee_dim, local_dim, 3, 1, 1, bias=False), _gn(local_dim), nn.GELU(),
@@ -106,6 +106,7 @@ class GRAFTPlug(nn.Module):
                 activation='gelu',
                 batch_first=True,
                 norm_first=True,
+                dropout=0.0,  # 显式关闭 dropout：teacher 前向确定性，且不再消耗全局 RNG
             )
             self.transformer = nn.TransformerEncoder(layer, num_layers=cgr_blocks)
             # teacher fusion: [global context (token_dim) + local R_s (bsee_dim)] -> T_s
@@ -194,19 +195,38 @@ class GRAFTPlug(nn.Module):
                 task = task + self._bce_dice(torch.sigmoid(logit), target)
             losses['graft_task'] = task
 
-        # 5. repr gradient（teacher -> probe，KGR 路由）
+        # 5. repr gradient（teacher -> probe，KGR 路由；changed/unchanged 各自等预算）
         if self.repr_grad:
             repr_loss = 0.0
+            kgr_mean = 0.0
+            conf_mean = 0.0
+            gap_mean = 0.0
             for s in range(self.num_stages):
                 ZS = self.probe[s](self._symmetric(feats1[s], feats2[s]))
                 ZT = Ts[s].detach()
                 d = 1.0 - F.cosine_similarity(ZS, ZT, dim=1, eps=1e-6)  # [B,H,W]
                 if self.kgr:
-                    W = self._kgr_weight(teacher_logits[s], ZT, ZS, target)
-                    repr_loss = repr_loss + (W * d).mean()
+                    # teacher reliability（绝对值门控，不做类内归一化，保留"不可靠→少教"）
+                    C = (2 * torch.sigmoid(teacher_logits[s]) - 1).abs().detach()  # [B,1,H,W]
+                    W = (C * d.unsqueeze(1)).detach()                                # [B,1,H,W]
+                    pixel = W.squeeze(1) * d                                         # [B,H,W]
+                    kgr_mean = kgr_mean + W.mean()
+                    conf_mean = conf_mean + C.mean()
+                    gap_mean = gap_mean + d.mean()
                 else:
-                    repr_loss = repr_loss + d.mean()
+                    pixel = d
+                # changed / unchanged 分别取均值再平均，保证两类同等梯度预算
+                gt = F.interpolate(target, size=d.shape[-2:], mode='nearest').squeeze(1)  # [B,H,W]
+                pos = (gt == 1.0).float()
+                neg = (gt == 0.0).float()
+                loss_changed = (pixel * pos).sum() / (pos.sum() + 1e-6)
+                loss_unchanged = (pixel * neg).sum() / (neg.sum() + 1e-6)
+                repr_loss = repr_loss + 0.5 * (loss_changed + loss_unchanged)
             losses['graft_repr'] = repr_loss
+            if self.kgr:
+                losses['graft_kgr'] = kgr_mean / self.num_stages
+                losses['graft_conf'] = conf_mean / self.num_stages
+                losses['graft_gap'] = gap_mean / self.num_stages
 
         return losses
 
@@ -224,18 +244,3 @@ class GRAFTPlug(nn.Module):
         eps = 1e-5
         dice = (2 * inter + eps) / (pred.sum() + target.sum() + eps)
         return bce + 1 - dice
-
-    def _kgr_weight(self, teacher_logit, ZT, ZS, target):
-        # teacher reliability: 越接近 0/1 越自信
-        C = (2 * torch.sigmoid(teacher_logit) - 1).abs()               # [B,1,H,W]
-        # knowledge gap: probe 与 teacher 的差异
-        D = (1.0 - F.cosine_similarity(ZS, ZT, dim=1, eps=1e-6)).unsqueeze(1)  # [B,1,H,W]
-        W = (C * D).detach()
-        # changed / unchanged 分别归一化
-        gt = F.interpolate(target, size=W.shape[-2:], mode='nearest')  # [B,1,H,W]
-        Wb = W.clone()
-        for cls in (0.0, 1.0):
-            mask = (gt == cls)
-            denom = W[mask].mean() + 1e-6
-            Wb[mask] = W[mask] / denom
-        return Wb.squeeze(1)                                            # [B,H,W]
