@@ -1,0 +1,195 @@
+CD 数据集目录核查报告
+========================================================================
+Root: /data/CD
+时间: 2026-08-03 15:48:06
+服务器: 2024a
+========================================================================
+
+[CDD-CD-256]
+Path: /data/CD/CDD-CD-256
+Top-level tree (2 levels):
+  /data/CD/CDD-CD-256
+  ├── A/
+  ├── B/
+  ├── label/
+  ├── list/
+
+Counts:
+  A files: 15998
+  B files: 15998
+  label files: 15998
+  list files: 3
+
+Samples from A/B/label (first 5 sorted file names):
+  A: test_00000.jpg, test_00001.jpg, test_00002.jpg, test_00003.jpg, test_00004.jpg
+  B: test_00000.jpg, test_00001.jpg, test_00002.jpg, test_00003.jpg, test_00004.jpg
+  label: test_00000.jpg, test_00001.jpg, test_00002.jpg, test_00003.jpg, test_00004.jpg
+
+List files preview:
+  test.txt (first 3 lines): test_00000.jpg, test_00001.jpg, test_00002.jpg
+  train.txt (first 3 lines): train_00000.jpg, train_00001.jpg, train_00002.jpg
+  val.txt (first 3 lines): val_00000.jpg, val_00001.jpg, val_00002.jpg
+
+------------------------------------------------------------------------
+
+[LEVIR-CD+256]
+Path: /data/CD/LEVIR-CD+256
+Top-level tree (2 levels):
+  /data/CD/LEVIR-CD+256
+  ├── A/
+  ├── B/
+  ├── label/
+  ├── list/
+
+Counts:
+  A files: 15760
+  B files: 15760
+  label files: 15760
+  list files: 3
+
+Samples from A/B/label (first 5 sorted file names):
+  A: train_100_00.png, train_100_01.png, train_100_02.png, train_100_03.png, train_10_00.png
+  B: train_100_00.png, train_100_01.png, train_100_02.png, train_100_03.png, train_10_00.png
+  label: train_100_00.png, train_100_01.png, train_100_02.png, train_100_03.png, train_10_00.png
+
+List files preview:
+  test.txt (first 3 lines): train_638_00.png, train_638_01.png, train_638_02.png
+  train.txt (first 3 lines): train_100_00.png, train_100_01.png, train_100_02.png
+  val.txt (first 3 lines): train_100_00.png, train_100_01.png, train_100_02.png
+
+------------------------------------------------------------------------
+
+[LEVIR-CD-256]
+Path: /data/CD/LEVIR-CD-256
+Top-level tree (2 levels):
+  /data/CD/LEVIR-CD-256
+  ├── A/
+  ├── B/
+  ├── label/
+  ├── list/
+
+Counts:
+  A files: 10192
+  B files: 10192
+  label files: 10192
+  list files: 3
+
+Samples from A/B/label (first 5 sorted file names):
+  A: test_100_10.png, test_100_11.png, test_100_12.png, test_100_13.png, test_100_14.png
+  B: test_100_10.png, test_100_11.png, test_100_12.png, test_100_13.png, test_100_14.png
+  label: test_100_10.png, test_100_11.png, test_100_12.png, test_100_13.png, test_100_14.png
+
+List files preview:
+  test.txt (first 3 lines): test_100_10.png, test_100_11.png, test_100_12.png
+  train.txt (first 3 lines): train_100_10.png, train_100_11.png, train_100_12.png
+  val.txt (first 3 lines): val_10_10.png, val_10_11.png, val_10_12.png
+
+------------------------------------------------------------------------
+
+[SYSU-CD-256]
+Path: /data/CD/SYSU-CD-256
+Top-level tree (2 levels):
+  /data/CD/SYSU-CD-256
+  ├── A/
+  ├── B/
+  ├── label/
+  ├── list/
+
+Counts:
+  A files: 20000
+  B files: 20000
+  label files: 20000
+  list files: 3
+
+Samples from A/B/label (first 5 sorted file names):
+  A: 00000.png, 00001.png, 00002.png, 00003.png, 00004.png
+  B: 00000.png, 00001.png, 00002.png, 00003.png, 00004.png
+  label: 00000.png, 00001.png, 00002.png, 00003.png, 00004.png
+
+List files preview:
+  test.txt (first 3 lines): 16000.png, 16001.png, 16002.png
+  train.txt (first 3 lines): 00000.png, 00001.png, 00002.png
+  val.txt (first 3 lines): 12000.png, 12001.png, 12002.png
+
+------------------------------------------------------------------------
+
+[WHU-CD-256]
+Path: /data/CD/WHU-CD-256
+Top-level tree (2 levels):
+  /data/CD/WHU-CD-256
+  ├── A/
+  ├── B/
+  ├── label/
+  ├── list/
+  ├── WHU_CD/
+
+Counts:
+  A files: 7434
+  B files: 7434
+  label files: 7434
+  list files: 26
+
+Samples from A/B/label (first 5 sorted file names):
+  A: whucd_00001.png, whucd_00002.png, whucd_00003.png, whucd_00004.png, whucd_00005.png
+  B: whucd_00001.png, whucd_00002.png, whucd_00003.png, whucd_00004.png, whucd_00005.png
+  label: whucd_00001.png, whucd_00002.png, whucd_00003.png, whucd_00004.png, whucd_00005.png
+
+List files preview:
+  100_train_supervised.txt (first 3 lines): whucd_02809.png, whucd_00331.png, whucd_06580.png
+  100_train_unsupervised.txt (first 3 lines): 
+  10_train_supervised.txt (first 3 lines): whucd_02344.png, whucd_06954.png, whucd_06809.png
+  10_train_unsupervised.txt (first 3 lines): whucd_02522.png, whucd_04953.png, whucd_06421.png
+  20_train_supervised.txt (first 3 lines): whucd_02344.png, whucd_06954.png, whucd_06809.png
+  20_train_unsupervised.txt (first 3 lines): whucd_04913.png, whucd_03246.png, whucd_02113.png
+  30_train_supervised.txt (first 3 lines): whucd_02344.png, whucd_06954.png, whucd_06809.png
+  30_train_unsupervised.txt (first 3 lines): whucd_03832.png, whucd_07110.png, whucd_01580.png
+  40_train_supervised.txt (first 3 lines): whucd_02344.png, whucd_06954.png, whucd_06809.png
+  40_train_unsupervised.txt (first 3 lines): whucd_00401.png, whucd_02116.png, whucd_03595.png
+  50_train_supervised.txt (first 3 lines): whucd_02344.png, whucd_06954.png, whucd_06809.png
+  50_train_unsupervised.txt (first 3 lines): whucd_03519.png, whucd_05156.png, whucd_01688.png
+  5_train_supervised.txt (first 3 lines): whucd_02344.png, whucd_06954.png, whucd_06809.png
+  5_train_unsupervised.txt (first 3 lines): whucd_05756.png, whucd_03194.png, whucd_05328.png
+  60_train_supervised.txt (first 3 lines): whucd_02344.png, whucd_06954.png, whucd_06809.png
+  60_train_unsupervised.txt (first 3 lines): whucd_06030.png, whucd_04794.png, whucd_04294.png
+  70_train_supervised.txt (first 3 lines): whucd_02344.png, whucd_06954.png, whucd_06809.png
+  70_train_unsupervised.txt (first 3 lines): whucd_05670.png, whucd_05619.png, whucd_04638.png
+  80_train_supervised.txt (first 3 lines): whucd_02344.png, whucd_06954.png, whucd_06809.png
+  80_train_unsupervised.txt (first 3 lines): whucd_06657.png, whucd_05920.png, whucd_04595.png
+  generate_semicd_splits.py (first 3 lines): import os, import numpy as np, import math
+  gen_train_val_test.py (first 3 lines): import os, import numpy as np, import math
+  random_sup.py (first 3 lines): import random, import os, def select_random_lines(all_list,  sup_list,  percentage, unsup_list):
+  test.txt (first 3 lines): whucd_01210.png, whucd_06645.png, whucd_06494.png
+  train.txt (first 3 lines): whucd_04681.png, whucd_00267.png, whucd_03514.png
+  val.txt (first 3 lines): whucd_00665.png, whucd_07218.png, whucd_03059.png
+
+------------------------------------------------------------------------
+
+[DSIFN]
+Path: /data/CD/DSIFN
+Top-level tree (2 levels):
+  /data/CD/DSIFN
+  ├── A/
+  ├── B/
+  ├── label/
+  ├── list/
+
+Counts:
+  A files: 3988
+  B files: 3988
+  label files: 3988
+  list files: 4
+
+Samples from A/B/label (first 5 sorted file names):
+  A: test_0.png, test_10.png, test_11.png, test_12.png, test_13.png
+  B: test_0.png, test_10.png, test_11.png, test_12.png, test_13.png
+  label: test_0.png, test_10.png, test_11.png, test_12.png, test_13.png
+
+List files preview:
+  test.txt (first 3 lines): test_0.png, test_1.png, test_10.png
+  train.txt (first 3 lines): train_1.png, train_10.png, train_100.png
+  trainval.txt (first 3 lines): train_1.png, train_10.png, train_100.png
+  val.txt (first 3 lines): val_1016.png, val_1023.png, val_1034.png
+
+------------------------------------------------------------------------
+
+核查完成!

@@ -1,0 +1,11 @@
+torch==2.1.2+cu121
+torchvision==0.16.2+cu121
+torchaudio==2.1.2+cu121
+numpy==1.26.4
+opencv-python==4.10.0.84
+Pillow>=10.0
+scikit-learn>=1.0
+scipy>=1.10
+tensorboardX>=2.6
+thop>=0.1.1
+tqdm>=4.60
