@@ -34,6 +34,17 @@ git push
 - **实验目标**：以证明方法有效性为主（四个数据集一致提升），不追求吞吐/显存/推理速度等工程指标。
 - **迭代方式**：项目会不断更新版本、修改代码；目录结构与命名保持可维护、可扩展，便于消融与版本回溯。
 
+## 当前方法：GRAFT-PLUG
+
+GRAFT-PLUG（Gradient-Routed Auxiliary Fusion Teacher Plug-in，梯度路由式辅助融合教师外挂）是当前主推的训练期外挂模块，实现于 `models/plugins/graft_plug.py`。四个组件：
+
+- **BSEE**（双时相对称证据编码器）：`sum / |diff| / product` 对称关系基，交换不变。
+- **CGR**（跨阶段全局推理器）：多尺度 token 化 + transformer，聚合跨 stage / 跨时相 / 全局上下文。
+- **LSP**（局部 stage 探针）：容量受限、只能看本 stage，逼 backbone 内化全局知识。
+- **KGR**（知识缺口梯度路由器）：按 teacher reliability × knowledge gap 选择性教学。
+
+它产生两条互补梯度：**Global Task Gradient**（GT 深度监督）＋ **Global-to-Local Distillation Gradient**（stop-grad 自蒸馏）。完整设计见 `docs/temporary/LS-Rep_BCD_PLUG_GRAFT_PLUG_Research_Design_v2.md`。
+
 ## 数据集与评估协议
 
 四个数据集：`LEVIR-CD-256`、`SYSU-CD-256`、`WHU-CD-256`、`CDD-CD-256`。
@@ -53,17 +64,28 @@ git push
 
 ```text
 models/                  A2Net + LWGANet-L0 干净 baseline（部署模型）
+  plugins/graft_plug.py  GRAFT-PLUG 训练期外挂（switch_to_deploy() 拆除）
 train_scripts/
   A2Net/Run1/            干净 baseline 训练脚本（4 数据集）
-  PLUG/Run1/             外挂模块消融矩阵模板（仿 SAGE-CD/Run2 简洁写法）
+  PLUG/Run1/             外挂模块消融矩阵模板
+  GRAFT-PLUG/Run1/       GRAFT-PLUG Phase A 机制消融（SYSU + CDD，GPU 1）
 Model_Reproduction/      各工作关键创新点代码（每个只保留核心 .py）
 docs/                    项目文档与实验指标（docs/temporary/ 不提交）
+  docs/参考文献/          文献索引与论文 PDF
 analyse/
   update_metrics.py      训练结束后把结果写回 experiment_metrics.xlsx
   generate_snapshot.py   在 docs/temporary/ 生成代码+指标快照
 ```
 
 ## 快速开始
+
+### 训练（GRAFT-PLUG 机制消融，物理 GPU 1）
+
+```bash
+bash train_scripts/GRAFT-PLUG/Run1/run_gpu1.sh 1
+```
+
+消融矩阵（R0 / R1-T / R1-D / R1-U / R1-F / R1-L）见 `train_scripts/GRAFT-PLUG/Run1/README.md`。
 
 ### 训练（干净 baseline）
 

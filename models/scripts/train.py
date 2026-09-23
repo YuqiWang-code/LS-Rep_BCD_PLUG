@@ -52,6 +52,13 @@ def parse_args():
     parser.add_argument('--afd_lambda', type=float, default=0.5, help='AFD loss weight')
     parser.add_argument('--pretrained', default=True, help='Use pretrained backbone')
 
+    # GRAFT-PLUG (train-only plug-in)
+    parser.add_argument('--graft_ablation', type=str, default=None,
+                        choices=['T', 'D', 'U', 'F', 'L'],
+                        help='GRAFT ablation: T=task only, D=distill only, U=uniform, F=full, L=local tutor')
+    parser.add_argument('--graft_task_weight', type=float, default=1.0, help='GRAFT task gradient weight')
+    parser.add_argument('--graft_repr_weight', type=float, default=1.0, help='GRAFT representation gradient weight')
+
     # Training
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--max_steps', type=int, default=40000)
@@ -104,7 +111,7 @@ def train_epoch(args, train_loader, model, criterion, optimizer, epoch, max_batc
         target = target.cuda().float()
 
         # Forward pass (training -> returns (masks, aux_losses))
-        masks, aux_losses = model(pre_img, post_img)
+        masks, aux_losses = model(pre_img, post_img, target)
         output, output2, output3, output4 = masks
 
         # Main multi-scale loss
@@ -115,6 +122,12 @@ def train_epoch(args, train_loader, model, criterion, optimizer, epoch, max_batc
         # AFD auxiliary loss
         if "afd" in aux_losses:
             loss = loss + args.afd_lambda * aux_losses["afd"]
+
+        # GRAFT auxiliary losses
+        if "graft_task" in aux_losses:
+            loss = loss + args.graft_task_weight * aux_losses["graft_task"]
+        if "graft_repr" in aux_losses:
+            loss = loss + args.graft_repr_weight * aux_losses["graft_repr"]
 
         # Backward
         optimizer.zero_grad()
@@ -201,6 +214,34 @@ def count_flops(model, size=256):
         return None
 
 
+def _build_graft_cfg(args):
+    """Build GRAFTPlug config dict from --graft_ablation."""
+    if args.graft_ablation is None:
+        return None
+    stage_ch = (32, 64, 128, 256) if args.model_type == 'L0' else (96, 192, 384, 768)
+    cfg = dict(
+        stage_ch=stage_ch,
+        bsee_dim=128,
+        token_dim=192,
+        cgr_blocks=4,
+        cgr_heads=6,
+        mlp_ratio=4,
+        pool_sizes=(8, 4, 4, 2),
+    )
+    mode = args.graft_ablation
+    if mode == 'T':
+        cfg.update(task_grad=True, repr_grad=False, detach_teacher=False, kgr=False, local_tutor=False)
+    elif mode == 'D':
+        cfg.update(task_grad=True, repr_grad=True, detach_teacher=True, kgr=False, local_tutor=False)
+    elif mode == 'U':
+        cfg.update(task_grad=True, repr_grad=True, detach_teacher=False, kgr=False, local_tutor=False)
+    elif mode == 'F':
+        cfg.update(task_grad=True, repr_grad=True, detach_teacher=False, kgr=True, local_tutor=False)
+    elif mode == 'L':
+        cfg.update(task_grad=True, repr_grad=True, detach_teacher=False, kgr=True, local_tutor=True)
+    return cfg
+
+
 def main():
     args = parse_args()
 
@@ -223,15 +264,20 @@ def main():
 
     # Build model
     print("Building model...")
+    graft_cfg = _build_graft_cfg(args)
     if args.model_type == 'L0':
-        model = A2Net_LWGANet_L0(pretrained=args.pretrained, use_afd=args.use_afd)
+        model = A2Net_LWGANet_L0(pretrained=args.pretrained, use_afd=args.use_afd, graft_cfg=graft_cfg)
     else:
-        model = A2Net_LWGANet_L2(pretrained=args.pretrained, use_afd=args.use_afd)
+        model = A2Net_LWGANet_L2(pretrained=args.pretrained, use_afd=args.use_afd, graft_cfg=graft_cfg)
     model = model.cuda()
 
     train_params = sum(p.numel() for p in model.parameters())
+    graft_params = (sum(p.numel() for p in model.graft.parameters())
+                    if getattr(model, 'use_graft', False) else 0)
     print(f"Model: A2Net_LWGANet_{args.model_type}")
     print(f"Train Params: {train_params / 1e6:.2f}M")
+    if graft_params:
+        print(f"GRAFT (train-only) Params: {graft_params / 1e6:.2f}M")
 
     # Build dataloaders (test split is reused as the validation set)
     print("Loading data...")
@@ -257,7 +303,9 @@ def main():
         'model': f'A2Net_LWGANet_{args.model_type}',
         'use_afd': args.use_afd,
         'afd_lambda': args.afd_lambda if args.use_afd else 0,
+        'graft_ablation': args.graft_ablation if args.graft_ablation else 'None',
         'train_params': f'{train_params / 1e6:.2f}M',
+        'graft_params': f'{graft_params / 1e6:.2f}M' if graft_params else '0',
         'batch_size': args.batch_size,
         'lr': args.lr,
         'max_steps': args.max_steps,
