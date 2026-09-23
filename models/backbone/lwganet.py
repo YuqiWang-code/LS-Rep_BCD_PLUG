@@ -501,7 +501,7 @@ def LWGANet_L0_1242_e32_k11_GELU(num_classes=2, stem_dim=32, pretrained=None, **
                     fork_feat=True,
                     **kwargs)
     if pretrained == True:
-        checkpoint = torch.load('/home/yqwang/project/LS-Rep_BCD/pre-trained_weights/lwganet_l0_e299.pth',
+        checkpoint = torch.load('/home/yqwang/project/LS-Rep_BCD_PLUG/pre-trained_weights/lwganet_l0_e299.pth',
                                 map_location=torch.device('cpu'),
                                 weights_only=False)
         _state_dict = checkpoint['model']
