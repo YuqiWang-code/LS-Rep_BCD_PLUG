@@ -62,6 +62,8 @@ GRAFT-PLUG（Gradient-Routed Auxiliary Fusion Teacher Plug-in，梯度路由式�
 | WHU-CD-256 | 92.54 | 94.77 | 99.50 | 93.64 | 88.05 | 93.39 |
 | CDD-CD-256 | 96.46 | 97.46 | 99.22 | 96.95 | 94.09 | 96.50 |
 
+> Run1 干净 R0（seed 2333，修复后的确定性协议）已复现：SYSU F1 83.04 / CDD F1 97.31，与上表参考值一致（±0.5% 内）。
+
 ## 目录结构
 
 ```text
@@ -83,11 +85,16 @@ analyse/
 
 ### 训练（GRAFT-PLUG 机制消融，物理 GPU 1）
 
-```bash
-bash train_scripts/GRAFT-PLUG/Run1/run_gpu1.sh 1
-```
+`run_gpu1.sh <gpu_id> <group>`，`group ∈ {sysu, cdd, all}`。消融矩阵（R0 / R1-T / R1-D / R1-U / R1-F / R1-L）见 `train_scripts/GRAFT-PLUG/Run1/README.md`。
 
-消融矩阵（R0 / R1-T / R1-D / R1-U / R1-F / R1-L）见 `train_scripts/GRAFT-PLUG/Run1/README.md`。
+```bash
+# 单卡顺序跑全部（SYSU + CDD）
+bash train_scripts/GRAFT-PLUG/Run1/run_gpu1.sh 1 all
+
+# 拆两路并行占满 GPU 1（推荐，SYSU / CDD 各一路，batch 64）
+tmux new-session -d -s graft_sysu 'bash train_scripts/GRAFT-PLUG/Run1/run_gpu1.sh 1 sysu'
+tmux new-session -d -s graft_cdd  'bash train_scripts/GRAFT-PLUG/Run1/run_gpu1.sh 1 cdd'
+```
 
 ### 训练（干净 baseline）
 
@@ -104,7 +111,7 @@ python analyse/generate_snapshot.py --name A2Net_Run1 --include_metrics
 
 ## 研究约束
 
-外挂模块是训练期辅助结构，必须满足：部署参数固定 2.9131M / 2.7475G；`switch_to_deploy()` 后主路输出逐 bit 不变；外挂模块开/关不改变主输出。详细约束见 `docs/ChatGPT_Project_Settings.md`。
+外挂模块是训练期辅助结构，必须满足：部署参数固定 2.9131M / 2.7475G；`switch_to_deploy()` 后主路输出逐 bit 不变；外挂模块开/关不改变主输出。训练结束自动做 deploy equivalence 校验（max error < 1e-6）并导出干净 `best_deploy_model.pth`。详细约束见 `docs/ChatGPT_Project_Settings.md`。
 
 ## 参考文献
 
