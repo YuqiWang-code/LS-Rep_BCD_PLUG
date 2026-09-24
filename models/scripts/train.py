@@ -467,15 +467,11 @@ def main():
         assert deploy_params == 2_913_094, f"Unexpected deploy params: {deploy_params}"
     logger.log_message("Deploy equivalence check PASSED (max error < 1e-6)")
 
-    deploy_flops = count_flops(model, size=args.inWidth)
-    if deploy_flops is not None:
-        deploy_flops_msg = (f"Inference FLOPs (deploy): {deploy_flops / 1e9:.4f}G "
-                            f"@ {args.inWidth}x{args.inHeight}")
-        logger.log_message(deploy_flops_msg)
-        print(deploy_flops_msg)
-
     # Export a clean deploy-only checkpoint and verify it loads strictly into a
     # fresh no-graft model (guarantees the side branch left no residue behind).
+    # NOTE: must run BEFORE count_flops() — thop.profile() registers
+    # `total_ops`/`total_params` buffers on every submodule, which would otherwise
+    # leak into the saved state_dict and break the strict load.
     deploy_ckpt = os.path.join(args.save_dir, 'best_deploy_model.pth')
     torch.save(model.state_dict(), deploy_ckpt)
     if args.model_type == 'L0':
@@ -485,6 +481,13 @@ def main():
     clean.load_state_dict(torch.load(deploy_ckpt), strict=True)
     logger.log_message(f"Deploy checkpoint saved & strict-loaded: {deploy_ckpt}")
     print(f"Deploy checkpoint saved & strict-loaded: {deploy_ckpt}")
+
+    deploy_flops = count_flops(model, size=args.inWidth)
+    if deploy_flops is not None:
+        deploy_flops_msg = (f"Inference FLOPs (deploy): {deploy_flops / 1e9:.4f}G "
+                            f"@ {args.inWidth}x{args.inHeight}")
+        logger.log_message(deploy_flops_msg)
+        print(deploy_flops_msg)
 
     print(f"\nTest (best_epoch): Kappa = {score_test['Kappa']:.4f}, IoU = {score_test['IoU']:.4f}, "
           f"F1 = {score_test['F1']:.4f}, R = {score_test['recall']:.4f}, P = {score_test['precision']:.4f}")
