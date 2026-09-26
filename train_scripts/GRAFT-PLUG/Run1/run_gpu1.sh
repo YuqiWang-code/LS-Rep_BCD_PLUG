@@ -1,8 +1,8 @@
 #!/bin/bash
 # GRAFT-PLUG Run1 — Phase A 机制消融矩阵（seed 2333），物理 GPU 1
 # R0 / R1-T / R1-D / R1-U / R1-F / R1-L
-# 用法：run_gpu1.sh <gpu_id> <group>   group ∈ {sysu, cdd, all}
-#   拆两路并行占满 GPU 1：  tmux 各跑 run_gpu1.sh 1 sysu 与 run_gpu1.sh 1 cdd
+# 用法：run_gpu1.sh <gpu_id> <group>   group ∈ {sysu, cdd, levir, whu, all}
+#   拆两路并行占满 GPU 1：  tmux 各跑 run_gpu1.sh 1 <group_a> 与 run_gpu1.sh 1 <group_b>
 set -euo pipefail
 
 GPU_ID="${1:-1}"
@@ -42,4 +42,10 @@ if [ "$GROUP" = "sysu" ] || [ "$GROUP" = "all" ]; then
 fi
 if [ "$GROUP" = "cdd" ] || [ "$GROUP" = "all" ]; then
   run_group CDD CDD-CD-256
+fi
+if [ "$GROUP" = "levir" ] || [ "$GROUP" = "all" ]; then
+  run_group LEVIR LEVIR-CD-256
+fi
+if [ "$GROUP" = "whu" ] || [ "$GROUP" = "all" ]; then
+  run_group WHU WHU-CD-256
 fi
